@@ -16,10 +16,10 @@ from telegram.ext import (
 # =========================
 # 🔴 REQUIRED SETTINGS
 # =========================
-BOT_TOKEN = "PASTE_BOT_TOKEN_HERE"        # ← BotFather token
-ADMIN_ID = 123456789                     # ← apna numeric Telegram ID
-UPI_ID = "aryankumar6333@navi"            # ← UPI ID
-QR_FILE_ID = None                         # ← abhi None rehne do
+BOT_TOKEN = "8564307153:AAFQ5D6un_WHjXmn6bpcXvk2OP75PotmIyA"
+ADMIN_ID = 8130333205      
+UPI_ID = "aryankumar6333@navi"       
+QR_FILE_ID = None
 # =========================
 
 # user state memory
