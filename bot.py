@@ -1,4 +1,5 @@
 import random
+import os
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -14,81 +15,85 @@ ADMIN_ID = 8130333205
 
 UPI_ID = "aryankumar6333@navi"
 VIP_PRICE = 199
-SIGNATURE = "Sensi by AryanSenx"
-# ========================================
+SIGNATURE = "🔥 Sensi by AryanSenx 🔥"
+# =========================================
 
-user_state = {}
+# runtime memory
+user_flow = {}   # uid -> {"mode": free/vip, "step": device/ram, "device": str}
 vip_users = set()
 
-# ---------------- START -----------------
+# ================ START ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🔥 SENX SENSI BOT 🔥\n\n"
-        "Type one option:\n"
-        "1️⃣ Free Sensi\n"
-        "2️⃣ VIP Sensi"
+        "Type exactly:\n"
+        "➡ Free Sensi\n"
+        "➡ VIP Sensi"
     )
 
-# --------------- TEXT -------------------
+# ============== MAIN TEXT HANDLER =========
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip().lower()
     uid = update.effective_user.id
+    text = update.message.text.strip()
 
-    # -------- FREE START --------
-    if text == "free sensi":
-        user_state[uid] = {"mode": "free", "step": 1}
+    # ---------- FREE ENTRY ----------
+    if text.lower() == "free sensi":
+        user_flow[uid] = {"mode": "free", "step": "device"}
         await update.message.reply_text("📱 Enter Device Name:")
         return
 
-    # -------- VIP START --------
-    if text == "vip sensi":
+    # ---------- VIP ENTRY ----------
+    if text.lower() == "vip sensi":
         if uid not in vip_users and uid != ADMIN_ID:
-            try:
+            if os.path.exists("qr.png"):
                 with open("qr.png", "rb") as f:
                     await update.message.reply_photo(
                         photo=f,
                         caption=(
-                            f"💎 VIP SENSI ₹{VIP_PRICE}\n"
-                            f"UPI: {UPI_ID}\n\n"
-                            "Payment ke baad admin verify karega.\n"
-                            "Phir VIP sensi milega."
+                            f"💎 VIP SENSI\n"
+                            f"Price: ₹{VIP_PRICE}\n"
+                            f"UPI ID: {UPI_ID}\n\n"
+                            "Payment ke baad admin verify karega."
                         )
                     )
-            except:
+            else:
                 await update.message.reply_text(
                     f"VIP SENSI ₹{VIP_PRICE}\nUPI: {UPI_ID}\n(QR missing)"
                 )
             return
 
-        user_state[uid] = {"mode": "vip", "step": 1}
+        user_flow[uid] = {"mode": "vip", "step": "device"}
         await update.message.reply_text("📱 Enter Device Name:")
         return
 
-    # -------- STATE FLOW --------
-    if uid not in user_state:
+    # ---------- CONTINUE FLOW ----------
+    if uid not in user_flow:
         return
 
-    state = user_state[uid]
+    state = user_flow[uid]
 
-    # STEP 1 → DEVICE
-    if state["step"] == 1:
+    # DEVICE STEP
+    if state["step"] == "device":
         state["device"] = text
-        state["step"] = 2
-        await update.message.reply_text("💾 Enter RAM (number):")
+        state["step"] = "ram"
+        await update.message.reply_text("💾 Enter RAM (number only):")
         return
 
-    # STEP 2 → RAM + RESULT
-    if state["step"] == 2:
+    # RAM STEP
+    if state["step"] == "ram":
         try:
             ram = int(text)
         except:
-            await update.message.reply_text("RAM number me likho (4,6,8)")
+            await update.message.reply_text("❌ RAM number me likho (4,6,8)")
             return
 
         device = state["device"]
 
+        # FREE RESULT
         if state["mode"] == "free":
             sensi = random.randint(105, 120)
+
+        # VIP RESULT
         else:
             if uid not in vip_users and uid != ADMIN_ID:
                 await update.message.reply_text("❌ VIP not verified.")
@@ -106,33 +111,26 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{SIGNATURE}"
         )
 
-        user_state.pop(uid)
+        user_flow.pop(uid)
         return
 
-# -------------- ADMIN -------------------
+# ============== ADMIN COMMANDS ============
 async def verifyvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
-
     if not context.args:
         await update.message.reply_text("Usage: /verifyvip USER_ID")
         return
-
-    uid = int(context.args[0])
-    vip_users.add(uid)
+    vip_users.add(int(context.args[0]))
     await update.message.reply_text("✅ VIP verified")
-    try:
-        await context.bot.send_message(uid, "✅ VIP activated. Type 'VIP Sensi'")
-    except:
-        pass
 
 async def viptest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     vip_users.add(ADMIN_ID)
-    await update.message.reply_text("🧪 VIP TEST ENABLED")
+    await update.message.reply_text("🧪 VIP test enabled")
 
-# -------------- MAIN --------------------
+# ============== MAIN ======================
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
