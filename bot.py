@@ -1,164 +1,154 @@
 import os
 import random
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    InputFile,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
-    CallbackQuerYHandler,
+    CallbackQueryHandler,
     MessageHandler,
     ContextTypes,
     filters,
 )
 
-# ================== CONFIG ==================
+# ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = os.getenv("ADMIN_ID")  # numeric string
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
 if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN missing in Railway Variables")
+    raise RuntimeError("BOT_TOKEN not set")
 
-QR_PATH = "qr.png"
+# ================= USER DATA =================
+users = {}
 
-# ================== USER STATES ==================
-user_state = {}
-user_data = {}
-vip_users = set()  # manually verified VIP users
-
-# ================== HELPERS ==================
-def reset_user(uid: int):
-    user_state.pop(uid, None)
-    user_data.pop(uid, None)
-
-def safe_int(text):
-    try:
-        return int(text)
-    except:
-        return None
-
-# ================== START ==================
+# ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    reset_user(uid)
-
     keyboard = [
-        [InlineKeyboardButton("⚡ Free Sensi", callback_data="free")],
-        [InlineKeyboardButton("💎 VIP Sensi", callback_data="vip")],
+        [InlineKeyboardButton("⚡ Free Sensi", callback_data="FREE")],
+        [InlineKeyboardButton("💎 VIP Sensi", callback_data="VIP")],
     ]
     await update.message.reply_text(
-        "🔥 SENX SENSI BOT\nChoose an option:",
-        parse_mode="Markdown",
+        "🔥 SENX SENSI BOT\n\nChoose option:",
         reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown",
     )
 
-# ================== BUTTON HANDLER ==================
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ================= BUTTON HANDLER =================
+async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     uid = query.from_user.id
-    data = query.data
 
-    if data == "free":
-        reset_user(uid)
-        user_state[uid] = "FREE_DEVICE"
+    if query.data == "FREE":
+        users[uid] = {"mode": "FREE", "step": "DEVICE"}
         await query.message.reply_text("📱 Enter Device Name:")
 
-    elif data == "vip":
-        reset_user(uid)
-        user_state[uid] = "VIP_WAIT"
-
-        # Send QR if exists
-        if os.path.exists(QR_PATH):
-            await query.message.reply_photo(
-                photo=InputFile(QR_PATH),
-                caption=(
-                    "💎 VIP SENSI ACCESS\n"
-                    "💰 Price: ₹199\n"
-                    "🆔 UPI ID: aryankumar6333@navi\n\n"
-                    "Payment ke baad admin verify karega"
-                ),
-                parse_mode="Markdown",
-            )
-        else:
-            await query.message.reply_text("❌ QR image missing (qr.png)")
-
+    elif query.data == "VIP":
+        users[uid] = {"mode": "VIP", "step": "DEVICE"}
         await query.message.reply_text(
-            "🛡️ VIP ke liye admin verify karega.\n"
-            "Admin command: /verifyvip USER_ID",
+            "💎 VIP SENSI\n\n"
+            "💰 Price: ₹199\n"
+            "UPI: aryankumar6333@navi\n\n"
+            "Payment ke baad admin verify karega.\n\n"
+            "📱 Enter Device Name:",
             parse_mode="Markdown",
         )
 
-# ================== MESSAGE HANDLER ==================
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    text = update.message.text.strip()
+# ================= TEXT HANDLER =================
+async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.message.from_user.id
+    text = update.message.text
 
-    state = user_state.get(uid)
-
-    # -------- FREE FLOW --------
-    if state == "FREE_DEVICE":
-        user_data[uid] = {"device": text}
-        user_state[uid] = "FREE_RAM"
-        await update.message.reply_text("💾 Enter RAM (e.g. 4):")
+    if uid not in users:
         return
 
-    if state == "FREE_RAM":
-        ram = safe_int(text)
-        if ram is None:
-            await update.message.reply_text("❌ RAM number me likho (e.g. 4)")
+    user = users[uid]
+
+    # DEVICE
+    if user["step"] == "DEVICE":
+        user["device"] = text
+        user["step"] = "RAM"
+        await update.message.reply_text("💾 Enter RAM (4 / 6 / 8):")
+        return
+
+    # RAM
+    if user["step"] == "RAM":
+        if not text.isdigit():
+            await update.message.reply_text("❌ RAM number me likho")
             return
 
-        device = user_data[uid]["device"]
+        user["ram"] = int(text)
 
-        sensi = random.randint(90, 120)
-        fire = round(random.uniform(9.0, 12.0), 1)
+        if user["mode"] == "FREE":
+            sensi = random.randint(110, 135)
+            fire = round(sensi / 10, 1)
 
-        await update.message.reply_text(
-            f"⚡ FREE SENSI\n"
-            f"📱 {device}\n"
-            f"💾 RAM: {ram}GB\n\n"
-            f"🎯 Sensi: {sensi}\n"
-            f"🔥 Fire: {fire}\n\n"
-            f"*Sensi by AryanSenx*",
-            parse_mode="Markdown",
-        )
+            await update.message.reply_text(
+                f"⚡ FREE SENSI\n\n"
+                f"📱 Device: {user['device']}\n"
+                f"💾 RAM: {user['ram']}GB\n\n"
+                f"🎯 Sensi: {sensi}\n"
+                f"🔥 Fire: {fire}\n\n"
+                f"🔴 Sensi by AryanSenx",
+                parse_mode="Markdown",
+            )
+            users.pop(uid)
+            return
 
-        reset_user(uid)
+        # VIP FLOW
+        if user["mode"] == "VIP":
+            keyboard = [
+                [
+                    InlineKeyboardButton("Low", callback_data="VIP_LOW"),
+                    InlineKeyboardButton("Medium", callback_data="VIP_MED"),
+                    InlineKeyboardButton("High", callback_data="VIP_HIGH"),
+                ]
+            ]
+            user["step"] = "LEVEL"
+            await update.message.reply_text(
+                "⚙️ Choose VIP Sensi Level:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+            return
+
+# ================= VIP LEVEL =================
+async def vip_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    uid = query.from_user.id
+
+    if uid not in users or users[uid]["mode"] != "VIP":
+        await query.message.reply_text("❌ VIP not active")
         return
 
-    # -------- VIP BLOCK --------
-    if state and state.startswith("VIP"):
-        await update.message.reply_text("❌ VIP not verified.")
-        return
+    level = query.data
+    base = {"VIP_LOW": 90, "VIP_MED": 105, "VIP_HIGH": 120}[level]
+    sensi = base + random.randint(5, 15)
+    fire = round(sensi / 10, 1)
 
-# ================== ADMIN VERIFY ==================
-async def verify_vip(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.effective_user.id) != str(ADMIN_ID):
-        await update.message.reply_text("❌ Admin only command")
-        return
+    user = users[uid]
 
-    if not context.args:
-        await update.message.reply_text("Usage: /verifyvip USER_ID")
-        return
+    await query.message.reply_text(
+        f"💎 VIP SENSI\n\n"
+        f"📱 Device: {user['device']}\n"
+        f"💾 RAM: {user['ram']}GB\n\n"
+        f"🎯 Sensi: {sensi}\n"
+        f"🔥 Fire: {fire}\n\n"
+        f"🔴 Sensi by AryanSenx",
+        parse_mode="Markdown",
+    )
 
-    uid = context.args[0]
-    vip_users.add(uid)
-    await update.message.reply_text(f"✅ VIP verified for {uid}")
+    users.pop(uid)
 
-# ================== MAIN ==================
+# ================= MAIN =================
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("verifyvip", verify_vip))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    app.add_handler(CallbackQueryHandler(vip_level, pattern="VIP_"))
+    app.add_handler(CallbackQueryHandler(buttons))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, messages))
 
+    print("Bot running...")
     app.run_polling()
 
 if _name_ == "_main_":
