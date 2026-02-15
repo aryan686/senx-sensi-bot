@@ -10,9 +10,9 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-BOT_TOKEN = "PASTE_BOT_TOKEN"
-ADMIN_ID = 123456789
-QR_FILE_ID = "PASTE_QR_FILE_ID"
+BOT_TOKEN = "8564307153:AAFQ5D6un_WHjXmn6bpcXvk2OP75PotmIyA"
+ADMIN_ID = 8130333205
+QR_FILE_ID = "AgACAgUAAxkBAANCaZHeSYv5eJwaFESB71sCoC3foTIAAv0Oaxue75BUKBXoj4Ay89wBAAMCAAN5AAM6BA"
 UPI_ID = "aryankumar6333@navi"
 VIP_PRICE = 199
 # ==========================================
