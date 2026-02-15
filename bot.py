@@ -9,7 +9,7 @@ from telegram import (
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
-    CallbackQueryHandler,
+    CallbackQuerYHandler,
     MessageHandler,
     ContextTypes,
     filters,
