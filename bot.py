@@ -9,18 +9,18 @@ from telegram.ext import (
     filters
 )
 
-# ========== CONFIG ==========
-BOT_TOKEN = "8564307153:AAFQ5D6un_WHjXmn6bpcXvk2OP75PotmIyA"
-ADMIN_ID = 8130333205
+# ================= CONFIG =================
+BOT_TOKEN = "PASTE_BOT_TOKEN"
+ADMIN_ID = 123456789
 QR_FILE_ID = "PASTE_QR_FILE_ID"
 UPI_ID = "aryankumar6333@navi"
 VIP_PRICE = 199
-# ============================
+# ==========================================
 
 user_state = {}
 vip_users = set()
 
-# ---------- START ----------
+# ---------- /start ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("⚡ Free Sensi", callback_data="free")],
@@ -32,19 +32,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# ---------- BUTTONS ----------
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ---------- BUTTON HANDLER ----------
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     uid = query.from_user.id
 
-    # ---- FREE ----
     if query.data == "free":
         user_state[uid] = {"mode": "free", "step": "device"}
         await query.message.reply_text("📱 Enter Device Name:")
+        return
 
-    # ---- VIP ----
-    elif query.data == "vip":
+    if query.data == "vip":
         await context.bot.send_photo(
             chat_id=query.message.chat_id,
             photo=QR_FILE_ID,
@@ -52,35 +51,40 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "💎 *VIP SENSI ACCESS*\n\n"
                 f"💰 Price: *₹{VIP_PRICE}*\n"
                 f"🟣 *UPI ID:* `{UPI_ID}`\n\n"
-                "Pay using GPay / PhonePe / Paytm / Navi\n"
+                "Pay via GPay / PhonePe / Paytm / Navi\n"
                 "_Payment ke baad admin verify karega_"
             ),
             parse_mode="Markdown"
         )
-
         user_state[uid] = {"mode": "vip", "step": "device"}
         await query.message.reply_text("📱 Enter Device Name:")
+        return
 
-# ---------- TEXT ----------
+    if query.data.startswith("vip_"):
+        await vip_level_handler(update, context)
+
+# ---------- TEXT HANDLER ----------
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.message.from_user.id
-    text = update.message.text
+    text = update.message.text.strip()
 
     if uid not in user_state:
         return
 
     state = user_state[uid]
 
+    # STEP 1 — DEVICE
     if state["step"] == "device":
         state["device"] = text
         state["step"] = "ram"
         await update.message.reply_text("💾 Enter RAM (e.g. 4GB):")
         return
 
+    # STEP 2 — RAM
     if state["step"] == "ram":
         state["ram"] = text
 
-        # ===== FREE FLOW =====
+        # ===== FREE SENSI =====
         if state["mode"] == "free":
             sensi = random.randint(90, 150)
             fire = round(sensi / 10, 1)
@@ -94,7 +98,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "_Sensi by AryanSenx_",
                 parse_mode="Markdown"
             )
-            user_state.pop(uid)
+            user_state.pop(uid, None)
             return
 
         # ===== VIP FLOW =====
@@ -110,18 +114,19 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     InlineKeyboardButton("High", callback_data="vip_high"),
                 ]
             ]
+            state["step"] = "vip_level"
             await update.message.reply_text(
                 "⚙️ Choose Sensi Level:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
+            return
 
 # ---------- VIP LEVEL ----------
-async def vip_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def vip_level_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     uid = query.from_user.id
-
     state = user_state.get(uid)
+
     if not state:
         return
 
@@ -129,9 +134,9 @@ async def vip_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("❌ VIP not verified.")
         return
 
-    if "low" in query.data:
+    if query.data == "vip_low":
         sensi = random.randint(90, 95)
-    elif "medium" in query.data:
+    elif query.data == "vip_medium":
         sensi = random.randint(100, 150)
     else:
         sensi = random.randint(150, 200)
@@ -148,9 +153,9 @@ async def vip_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-    user_state.pop(uid)
+    user_state.pop(uid, None)
 
-# ---------- ADMIN ----------
+# ---------- ADMIN VERIFY ----------
 async def verifyvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         return
@@ -160,7 +165,7 @@ async def verifyvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     vip_users.add(int(context.args[0]))
-    await update.message.reply_text("✅ VIP verified.")
+    await update.message.reply_text("✅ VIP verified successfully.")
 
 # ---------- MAIN ----------
 def main():
@@ -168,8 +173,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("verifyvip", verifyvip))
-    app.add_handler(CallbackQueryHandler(buttons, pattern="^(free|vip)$"))
-    app.add_handler(CallbackQueryHandler(vip_level, pattern="^vip_"))
+    app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 
     app.run_polling()
