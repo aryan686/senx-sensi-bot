@@ -1,2 +1,8 @@
-# senx-sensi-bot
-Telegram bot for SENX SENSI
+# SENX SENSI BOT
+
+Telegram bot with admin control.
+
+Commands:
+- /start
+- /sensi
+- /admin
