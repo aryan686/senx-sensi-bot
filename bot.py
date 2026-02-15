@@ -183,7 +183,7 @@ app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(buttons, pattern="^(free|vip)$"))
 app.add_handler(CallbackQueryHandler(vip_level, pattern="^vip_"))
-app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+app.add_handler(MessageHandler(filters.PHOTO, photo_handler)) 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 
 print("🤖 BOT RUNNING")
