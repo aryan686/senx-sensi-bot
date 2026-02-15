@@ -19,7 +19,7 @@ from telegram.ext import (
 
 # ================== CONFIG - Edit these ==================
 BOT_TOKEN = "8564307153:AAFQ5D6un_WHjXmn6bpcXvk2OP75PotmIyA"   # <-- paste your Bot token here
-ADMIN_ID = 8130333205                 # <-- paste your numeric Telegram ID here
+ADMIN_ID = 8130333205                   # <-- paste your numeric Telegram ID here
 
 UPI_ID = "aryankumar6333@navi"
 VIP_PRICE = 199
