@@ -2,49 +2,44 @@ import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# ===== ENV VARIABLES =====
+# ENV VARIABLES
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = os.getenv("ADMIN_ID")
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN not set")
 
-if not ADMIN_ID:
-    raise RuntimeError("ADMIN_ID not set")
-
-ADMIN_ID = int(ADMIN_ID)
-
-# ===== COMMANDS =====
+# COMMAND: /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🔥 SENX SENSI BOT LIVE 🔥\n\n"
+        "🔥 Welcome to SENX SENSI BOT 🔥\n\n"
         "Commands:\n"
-        "/sensi - Generate sensi\n"
-        "/admin - Admin only"
+        "/sensi - Generate Free Sensi\n"
+        "/admin - Admin Panel"
     )
 
+# COMMAND: /sensi
 async def sensi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🎯 SENX SENSI GENERATED 🎯\n\n"
-        "General: 145\n"
-        "Red Dot: 138\n"
-        "2x Scope: 150\n"
-        "4x Scope: 142\n"
-        "AWM: 72\n\n"
-        "🔥 Headshot Accuracy Boosted 🔥"
+        "🎯 Your Sensi:\n"
+        "General: 135\n"
+        "Red Dot: 140\n"
+        "2x Scope: 145\n"
+        "4x Scope: 150\n"
+        "AWM: 95\n"
+        "Fire Button: 52%"
     )
 
+# COMMAND: /admin
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
+    if ADMIN_ID and str(update.effective_user.id) == str(ADMIN_ID):
+        await update.message.reply_text(
+            "👑 ADMIN PANEL\n\n"
+            "Bot is running fine ✅"
+        )
+    else:
         await update.message.reply_text("❌ You are not admin")
-        return
 
-    await update.message.reply_text(
-        "✅ ADMIN PANEL\n\n"
-        "Bot is running perfectly."
-    )
-
-# ===== MAIN =====
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -52,7 +47,7 @@ def main():
     app.add_handler(CommandHandler("sensi", sensi))
     app.add_handler(CommandHandler("admin", admin))
 
-    print("Bot started successfully")
+    print("🤖 Bot started...")
     app.run_polling()
 
 if __name__ == "__main__":
