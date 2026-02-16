@@ -1,6 +1,5 @@
 import os
 import random
-import string
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -12,44 +11,42 @@ from telegram.ext import (
     filters,
 )
 
+# ========== ENV ==========
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
-if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN missing")
-if ADMIN_ID == 0:
-    raise RuntimeError("ADMIN_ID missing")
+if not BOT_TOKEN or ADMIN_ID == 0:
+    raise RuntimeError("BOT_TOKEN or ADMIN_ID missing")
 
-# ===== STATES =====
+# ========== CONFIG ==========
+UPI_ID = "aryankumar6333@navi"
+PRICE = "₹199"
+QR_URL = "https://i.imgur.com/6QpK0Zk.png"
+VIP_PASSWORD = "SenxBot"
+
+# ========== STATES ==========
 (
     FREE_DEVICE, FREE_RAM,
-    VIP_UTR, VIP_PASSWORD,
+    VIP_UTR, VIP_PASSWORD_STATE,
     VIP_DEVICE, VIP_RAM, VIP_LEVEL
 ) = range(7)
 
-VIP_PASSWORDS = {}
-VIP_VERIFIED = set()
-
-UPI_ID = "aryankumar6333@navi"
-QR_URL = "https://i.imgur.com/6QpK0Zk.png"   # ✅ QR IMAGE URL
-PRICE = "₹199"
-
-# ================= START =================
+# ========== START ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [
         [InlineKeyboardButton("⚡ Free Sensi", callback_data="free")],
         [InlineKeyboardButton("💎 VIP Sensi", callback_data="vip")],
     ]
     await update.message.reply_text(
-        "🔥 *SENX SENSI BOT*\nChoose option:",
+        "🔥 *SENX SENSI BOT*\n\nChoose option:",
         reply_markup=InlineKeyboardMarkup(kb),
         parse_mode="Markdown",
     )
 
-# ================= FREE =================
+# ========== FREE ==========
 async def free_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
-    await update.callback_query.message.reply_text("📱 Enter device name:")
+    await update.callback_query.message.reply_text("📱 Enter Device Name:")
     return FREE_DEVICE
 
 async def free_device(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,61 +56,62 @@ async def free_device(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def free_ram(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sensi = random.randint(95, 120)
-    fire = round(random.uniform(9.5, 12.0), 1)
+    fire = round(random.uniform(9.5, 12.5), 1)
+
+    context.user_data["fire"] = fire
+
+    kb = [[InlineKeyboardButton("🔥 Random Fire", callback_data="free_fire")]]
 
     await update.message.reply_text(
-        f"⚡ *FREE SENSI*\n\n"
+        f"⚡ *FREE SENSI GENERATED*\n\n"
         f"📱 Device: {context.user_data['device']}\n"
         f"💾 RAM: {update.message.text}\n\n"
         f"🎯 Sensi: {sensi}\n"
-        f"🔥 Fire: {fire}",
+        f"🔥 Fire: {fire}\n\n"
+        "*Sensi By AryanSenxSensi*",
+        reply_markup=InlineKeyboardMarkup(kb),
         parse_mode="Markdown",
     )
     return ConversationHandler.END
 
-# ================= VIP =================
+async def free_fire(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    fire = round(random.uniform(9.5, 12.5), 1)
+    await update.callback_query.message.reply_text(f"🔥 New Fire: {fire}")
+
+# ========== VIP ==========
 async def vip_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
+    user_id = update.callback_query.from_user.id
+
+    if user_id == ADMIN_ID:
+        await update.callback_query.message.reply_text(
+            "✅ Admin access granted\n\nPaste VIP Password:"
+        )
+        return VIP_PASSWORD_STATE
 
     await update.callback_query.message.reply_text(
         f"💎 *VIP SENSI ACCESS*\n\n"
         f"Price: {PRICE}\n"
         f"UPI ID: `{UPI_ID}`\n\n"
         f"📷 QR: {QR_URL}\n\n"
-        "Payment ke baad *UTR paste karo* 👇",
+        "Payment ke baad UTR paste karo 👇",
         parse_mode="Markdown",
     )
     return VIP_UTR
 
 async def vip_utr(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    utr = update.message.text
-
-    password = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    VIP_PASSWORDS[user_id] = password
-
-    await context.bot.send_message(
-        ADMIN_ID,
-        f"💎 VIP REQUEST\nUser: {user_id}\nUTR: {utr}\nPassword: {password}",
-    )
-
     await update.message.reply_text(
-        "⏳ Payment received\nWait 5 minutes — admin verify karega.",
+        "⏳ Payment noted\nAdmin verify ke baad password milega."
     )
-    return VIP_PASSWORD
+    return VIP_PASSWORD_STATE
 
 async def vip_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-
-    if user_id not in VIP_VERIFIED:
-        await update.message.reply_text("❌ Admin verification pending")
-        return VIP_PASSWORD
-
-    if update.message.text != VIP_PASSWORDS.get(user_id):
+    if update.message.text != VIP_PASSWORD:
         await update.message.reply_text("❌ Wrong password")
-        return VIP_PASSWORD
+        return VIP_PASSWORD_STATE
 
-    await update.message.reply_text("✅ Access granted\n📱 Enter device name:")
+    await update.message.reply_text("✅ VIP Access Granted\n📱 Enter Device Name:")
     return VIP_DEVICE
 
 async def vip_device(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -130,7 +128,7 @@ async def vip_ram(update: Update, context: ContextTypes.DEFAULT_TYPE):
         InlineKeyboardButton("High", callback_data="high"),
     ]]
     await update.message.reply_text(
-        "⚙️ Choose sensi level:",
+        "⚙️ Choose Sensi Level:",
         reply_markup=InlineKeyboardMarkup(kb),
     )
     return VIP_LEVEL
@@ -146,62 +144,32 @@ async def vip_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         sensi = random.randint(150, 200)
 
-    fire = round(random.uniform(10.0, 14.0), 1)
+    fire = round(random.uniform(10.0, 14.5), 1)
+
+    kb = [[InlineKeyboardButton("🔥 Random Fire", callback_data="vip_fire")]]
 
     await update.callback_query.message.reply_text(
-        f"💎 *VIP SENSI*\n\n"
+        f"💎 *VIP SENSI GENERATED*\n\n"
         f"📱 Device: {context.user_data['device']}\n"
         f"💾 RAM: {context.user_data['ram']}\n"
         f"⚙️ Level: {level.title()}\n\n"
         f"🎯 Sensi: {sensi}\n"
-        f"🔥 Fire: {fire}",
+        f"🔥 Fire: {fire}\n\n"
+        "*Sensi By AryanSenxSensi*",
+        reply_markup=InlineKeyboardMarkup(kb),
         parse_mode="Markdown",
     )
     return ConversationHandler.END
 
-# ================= ADMIN =================
-async def verifyvip(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.from_user.id != ADMIN_ID:
-        return
+async def vip_fire(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    fire = round(random.uniform(10.0, 14.5), 1)
+    await update.callback_query.message.reply_text(f"🔥 New Fire: {fire}")
 
-    user_id = int(context.args[0])
-    VIP_VERIFIED.add(user_id)
-
-    await context.bot.send_message(
-        user_id,
-        f"✅ VIP VERIFIED\nPassword: `{VIP_PASSWORDS[user_id]}`\nPaste it here 👇",
-        parse_mode="Markdown",
-    )
-
-# ================= MAIN =================
+# ========== MAIN ==========
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("verifyvip", verifyvip))
-
-    app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(free_entry, pattern="^free$")],
-        states={
-            FREE_DEVICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, free_device)],
-            FREE_RAM: [MessageHandler(filters.TEXT & ~filters.COMMAND, free_ram)],
-        },
-        fallbacks=[],
-    ))
-
-    app.add_handler(ConversationHandler(
-        entry_points=[CallbackQueryHandler(vip_entry, pattern="^vip$")],
-        states={
-            VIP_UTR: [MessageHandler(filters.TEXT & ~filters.COMMAND, vip_utr)],
-            VIP_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, vip_password)],
-            VIP_DEVICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, vip_device)],
-            VIP_RAM: [MessageHandler(filters.TEXT & ~filters.COMMAND, vip_ram)],
-            VIP_LEVEL: [CallbackQueryHandler(vip_level)],
-        },
-        fallbacks=[],
-    ))
-
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+    app.add_handler(CallbackQueryHandler(free_fire, pattern="^free_fire$"))
+    app.add_handler(CallbackQueryHandler(vip_fire, pattern="^
