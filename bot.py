@@ -1,10 +1,6 @@
 import os
 import random
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -14,9 +10,11 @@ from telegram.ext import (
     filters,
 )
 
-# ================= ENV =================
+# ================= ENV (SAFE LOAD) =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+ADMIN_ID_RAW = os.getenv("ADMIN_ID")
+
+ADMIN_ID = int(ADMIN_ID_RAW) if ADMIN_ID_RAW and ADMIN_ID_RAW.isdigit() else None
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN missing")
@@ -27,8 +25,7 @@ UPI_ID = "aryankumar6333@navi"
 QR_URL = "https://i.imgur.com/6QpK0Zk.png"
 
 # ================= STATE STORE =================
-# user_id : dict
-USERS = {}
+USERS = {}   # user_id -> state dict
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -64,7 +61,8 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # -------- VIP --------
     if q.data == "vip":
         st.clear()
-        if uid == ADMIN_ID:
+
+        if ADMIN_ID and uid == ADMIN_ID:
             st["state"] = "vip_password"
             st["vip"] = True
             await q.message.reply_text("🔑 Enter VIP Password:")
@@ -127,65 +125,3 @@ async def text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             st["state"] = "vip_device"
             await update.message.reply_text("✅ VIP Access Granted\n📱 Enter Device Name:")
         else:
-            await update.message.reply_text("❌ Wrong password")
-        return
-
-    # FREE DEVICE
-    if st.get("state") == "free_device":
-        st["device"] = msg
-        st["state"] = "free_ram"
-        await update.message.reply_text("💾 Enter RAM (GB):")
-        return
-
-    # FREE RAM
-    if st.get("state") == "free_ram":
-        sensi = random.randint(95, 120)
-        fire = round(random.uniform(9.5, 12.5), 1)
-
-        kb = [[InlineKeyboardButton("🔥 Random Fire", callback_data="free_fire")]]
-
-        await update.message.reply_text(
-            f"⚡ *FREE SENSI GENERATED*\n\n"
-            f"📱 Device: {st['device']}\n"
-            f"💾 RAM: {msg} GB\n\n"
-            f"🎯 Sensi: {sensi}\n"
-            f"🔥 Fire: {fire}\n\n"
-            "*Sensi By AryanSenxSensi*",
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="Markdown",
-        )
-        USERS[uid] = {"state": "idle"}
-        return
-
-    # VIP DEVICE
-    if st.get("state") == "vip_device":
-        st["device"] = msg
-        st["state"] = "vip_ram"
-        await update.message.reply_text("💾 Enter RAM (GB):")
-        return
-
-    # VIP RAM
-    if st.get("state") == "vip_ram":
-        st["ram"] = msg
-        st["state"] = "vip_level"
-        kb = [[
-            InlineKeyboardButton("Low", callback_data="low"),
-            InlineKeyboardButton("Medium", callback_data="medium"),
-            InlineKeyboardButton("High", callback_data="high"),
-        ]]
-        await update.message.reply_text(
-            "⚙️ Choose Sensi Level:",
-            reply_markup=InlineKeyboardMarkup(kb),
-        )
-        return
-
-# ================= MAIN =================
-def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(callbacks))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text))
-    app.run_polling(drop_pending_updates=True)
-
-if __name__ == "__main__":
-    main()
