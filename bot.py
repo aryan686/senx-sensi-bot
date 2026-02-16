@@ -10,10 +10,11 @@ from telegram.ext import (
     filters,
 )
 
-# ================= SAFE ENV LOAD =================
+# ================= ENV (SAFE) =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID_ENV = os.getenv("ADMIN_ID")
-ADMIN_ID = int(ADMIN_ID_ENV) if ADMIN_ID_ENV and ADMIN_ID_ENV.isdigit() else None
+
+ADMIN_ID_RAW = os.getenv("ADMIN_ID")
+ADMIN_ID = int(ADMIN_ID_RAW) if ADMIN_ID_RAW and ADMIN_ID_RAW.isdigit() else None
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN missing")
@@ -21,9 +22,8 @@ if not BOT_TOKEN:
 # ================= CONFIG =================
 VIP_PASSWORD = "SenxBot"
 UPI_ID = "aryankumar6333@navi"
-QR_URL = "https://i.imgur.com/6QpK0Zk.png"
 
-# ================= STATE =================
+# ================= USER STATE =================
 USERS = {}
 
 # ================= START =================
@@ -41,91 +41,108 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
-# ================= CALLBACKS =================
+# ================= CALLBACK HANDLER =================
 async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
+
     uid = q.from_user.id
     USERS.setdefault(uid, {"state": "idle"})
     st = USERS[uid]
 
+    # -------- FREE --------
     if q.data == "free":
         st.clear()
         st["state"] = "free_device"
         await q.message.reply_text("📱 Enter Device Name:")
         return
 
+    # -------- VIP --------
     if q.data == "vip":
         st.clear()
         st["state"] = "vip_password"
+
         if ADMIN_ID and uid == ADMIN_ID:
             st["vip"] = True
-            await q.message.reply_text("🔑 Enter VIP Password:")
+            await q.message.reply_text("👑 Admin Access\n🔑 Enter VIP Password:")
         else:
             await q.message.reply_text(
-                f"💎 *VIP ACCESS*\n\n₹199\nUPI: `{UPI_ID}`\nQR: {QR_URL}\n\nPassword paste karo 👇",
+                f"💎 *VIP ACCESS*\n\n"
+                f"Price: ₹199\n"
+                f"UPI ID: `{UPI_ID}`\n\n"
+                "Payment ke baad password paste karo 👇",
                 parse_mode="Markdown",
             )
         return
 
+    # -------- VIP LEVEL --------
     if q.data in ("low", "medium", "high") and st.get("vip"):
-        sensi = (
-            random.randint(90, 95)
-            if q.data == "low"
-            else random.randint(100, 150)
-            if q.data == "medium"
-            else random.randint(150, 200)
-        )
-        fire = round(random.uniform(10, 14.5), 1)
+        if q.data == "low":
+            sensi = random.randint(90, 95)
+        elif q.data == "medium":
+            sensi = random.randint(100, 150)
+        else:
+            sensi = random.randint(150, 200)
+
+        fire = round(random.uniform(10.0, 14.5), 1)
 
         kb = [[InlineKeyboardButton("🔥 Random Fire", callback_data="vip_fire")]]
 
         await q.message.reply_text(
             f"💎 *VIP SENSI GENERATED*\n\n"
-            f"📱 {st['device']}\n"
-            f"💾 {st['ram']} GB\n"
+            f"📱 Device: {st['device']}\n"
+            f"💾 RAM: {st['ram']} GB\n"
+            f"⚙️ Level: {q.data.title()}\n\n"
             f"🎯 Sensi: {sensi}\n"
             f"🔥 Fire: {fire}\n\n"
             "*Sensi By AryanSenxSensi*",
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="Markdown",
         )
+        return
 
+    # -------- RANDOM FIRE --------
     if q.data in ("free_fire", "vip_fire"):
         fire = round(random.uniform(9.5, 14.5), 1)
         await q.message.reply_text(f"🔥 New Fire: {fire}")
+        return
 
-# ================= TEXT =================
+# ================= TEXT HANDLER =================
 async def text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     msg = update.message.text.strip()
+
     USERS.setdefault(uid, {"state": "idle"})
     st = USERS[uid]
 
+    # VIP PASSWORD
     if st.get("state") == "vip_password":
         if msg == VIP_PASSWORD:
             st["vip"] = True
             st["state"] = "vip_device"
-            await update.message.reply_text("📱 Enter Device Name:")
+            await update.message.reply_text("✅ VIP Access Granted\n📱 Enter Device Name:")
         else:
             await update.message.reply_text("❌ Wrong password")
         return
 
+    # FREE DEVICE
     if st.get("state") == "free_device":
         st["device"] = msg
         st["state"] = "free_ram"
         await update.message.reply_text("💾 Enter RAM (GB):")
         return
 
+    # FREE RAM
     if st.get("state") == "free_ram":
         sensi = random.randint(95, 120)
         fire = round(random.uniform(9.5, 12.5), 1)
+
         kb = [[InlineKeyboardButton("🔥 Random Fire", callback_data="free_fire")]]
 
         await update.message.reply_text(
             f"⚡ *FREE SENSI GENERATED*\n\n"
-            f"📱 {st['device']}\n"
-            f"💾 {msg} GB\n"
+            f"📱 Device: {st['device']}\n"
+            f"💾 RAM: {msg} GB\n\n"
             f"🎯 Sensi: {sensi}\n"
             f"🔥 Fire: {fire}\n\n"
             "*Sensi By AryanSenxSensi*",
@@ -135,14 +152,17 @@ async def text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         USERS[uid] = {"state": "idle"}
         return
 
+    # VIP DEVICE
     if st.get("state") == "vip_device":
         st["device"] = msg
         st["state"] = "vip_ram"
         await update.message.reply_text("💾 Enter RAM (GB):")
         return
 
+    # VIP RAM
     if st.get("state") == "vip_ram":
         st["ram"] = msg
+        st["state"] = "vip_level"
         kb = [[
             InlineKeyboardButton("Low", callback_data="low"),
             InlineKeyboardButton("Medium", callback_data="medium"),
@@ -152,7 +172,7 @@ async def text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚙️ Choose Sensi Level:",
             reply_markup=InlineKeyboardMarkup(kb),
         )
-        st["state"] = "vip_level"
+        return
 
 # ================= MAIN =================
 def main():
